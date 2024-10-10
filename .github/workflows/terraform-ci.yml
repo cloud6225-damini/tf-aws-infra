@@ -20,10 +20,13 @@ jobs:
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.5.0  # Adjust to your Terraform version
+      # Step 3: Run terraform init
+      - name: Run terraform init
+        run: terraform init
 
       # Step 3: Run terraform fmt to check formatting
       - name: Run terraform fmt
-        run: terraform fmt -check -recursive
+        run: terraform fmt -check 
 
       # Step 4: Run terraform validate to check the syntax
       - name: Run terraform validate
