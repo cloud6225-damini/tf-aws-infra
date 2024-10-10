@@ -1,0 +1,31 @@
+name: Terraform CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    name: Terraform Format and Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the code from the repo
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Setup Terraform in the runner environment
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0  # Adjust to your Terraform version
+
+      # Step 3: Run terraform fmt to check formatting
+      - name: Run terraform fmt
+        run: terraform fmt -check -recursive
+
+      # Step 4: Run terraform validate to check the syntax
+      - name: Run terraform validate
+        run: terraform validate
+
