@@ -3,8 +3,8 @@
 data "aws_availability_zones" "available" {}
 
 # VPC Resource
-resource "aws_vpc" "main_vpc" {
-  cidr_block =     var.vpc_cidr
+resource "asdsws_vpc" "main_vpc" {
+  cidr_block = var.vpc_cidr
   tags = {
     Name = "MainVPC"
   }
