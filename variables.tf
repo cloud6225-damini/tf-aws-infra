@@ -18,3 +18,14 @@ variable "private_subnet_cidrs" {
   description = "CIDR blocks for the private subnets"
   type        = list(string)
 }
+
+variable "custom_ami" {
+  description = "AMI ID for the EC2 instance"
+  type        = string
+}
+
+variable "app_port" {
+  description = "Port on which the application runs"
+  type        = number
+  default     = 8080
+}
