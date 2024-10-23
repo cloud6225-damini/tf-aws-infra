@@ -29,7 +29,7 @@ variable "custom_ami" {
 variable "app_port" {
   description = "Port on which the application runs"
   type        = number
-  default     = 3000  
+  default     = 3000
 }
 
 # Database Password
@@ -40,31 +40,31 @@ variable "db_password" {
 }
 
 variable "db_port" {
-  default     = "3306"
+  default = "3306"
 }
 
 variable "vpc_name" {
-  default     = "mainvpc"
+  default = "mainvpc"
 }
 
-variable "subnet_count"{
-  default     = "3"
+variable "subnet_count" {
+  default = "3"
 }
 
-variable "db_engine"{
-  default     = "mysql"
+variable "db_engine" {
+  default = "mysql"
 }
 
-variable "db_username"{
-  default     = "cloud6225"
+variable "db_username" {
+  default = "cloud6225"
 }
 
-variable "db_name"{
-  default     = "cloud6225"
+variable "db_name" {
+  default = "cloud6225"
 }
 
-variable "db_group_family"{
-  default     = "mysql8.0"
+variable "db_group_family" {
+  default = "mysql8.0"
 }
 
 
