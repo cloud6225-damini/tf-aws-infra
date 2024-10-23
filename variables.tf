@@ -19,13 +19,52 @@ variable "private_subnet_cidrs" {
   type        = list(string)
 }
 
+# Custom AMI for EC2
 variable "custom_ami" {
   description = "AMI ID for the EC2 instance"
   type        = string
 }
 
+# Application Port
 variable "app_port" {
   description = "Port on which the application runs"
   type        = number
-  default     = 8080
+  default     = 3000  
 }
+
+# Database Password
+variable "db_password" {
+  description = "Password for the RDS instance"
+  type        = string
+  default     = "23101996"
+}
+
+variable "db_port" {
+  default     = "3306"
+}
+
+variable "vpc_name" {
+  default     = "mainvpc"
+}
+
+variable "subnet_count"{
+  default     = "3"
+}
+
+variable "db_engine"{
+  default     = "mysql"
+}
+
+variable "db_username"{
+  default     = "cloud6225"
+}
+
+variable "db_name"{
+  default     = "cloud6225"
+}
+
+variable "db_group_family"{
+  default     = "mysql8.0"
+}
+
+
