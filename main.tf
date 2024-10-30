@@ -82,47 +82,47 @@ resource "aws_route_table_association" "private_association" {
 }
 
 # Route 53 Hosted Zones for Domain and Subdomains
-resource "aws_route53_zone" "root_zone" {
-  name = "daminithorat.me"
-}
+# resource "aws_route53_zone" "root_zone" {
+#   name = "daminithorat.me"
+# }
 
-resource "aws_route53_zone" "dev_zone" {
-  name = "dev.daminithorat.me"
-}
+# resource "aws_route53_zone" "dev_zone" {
+#   name = "dev.daminithorat.me"
+# }
 
-resource "aws_route53_zone" "demo_zone" {
-  name = "demo.daminithorat.me"
-}
+# resource "aws_route53_zone" "demo_zone" {
+#   name = "demo.daminithorat.me"
+# }
 
-# Name server delegation for subdomains in Root Account
-resource "aws_route53_record" "dev_ns" {
-  zone_id = aws_route53_zone.root_zone.zone_id
-  name    = "dev"
-  type    = "NS"
-  ttl     = 300
-  records = aws_route53_zone.dev_zone.name_servers
-}
+# # Name server delegation for subdomains in Root Account
+# resource "aws_route53_record" "dev_ns" {
+#   zone_id = aws_route53_zone.root_zone.zone_id
+#   name    = "dev"
+#   type    = "NS"
+#   ttl     = 300
+#   records = aws_route53_zone.dev_zone.name_servers
+# }
 
-resource "aws_route53_record" "demo_ns" {
-  zone_id = aws_route53_zone.root_zone.zone_id
-  name    = "demo"
-  type    = "NS"
-  ttl     = 300
-  records = aws_route53_zone.demo_zone.name_servers
-}
+# resource "aws_route53_record" "demo_ns" {
+#   zone_id = aws_route53_zone.root_zone.zone_id
+#   name    = "demo"
+#   type    = "NS"
+#   ttl     = 300
+#   records = aws_route53_zone.demo_zone.name_servers
+# }
 
 # DNS A Record for EC2 Instances
-resource "aws_route53_record" "webapp_a_record_dev" {
-  zone_id = aws_route53_zone.dev_zone.zone_id
-  name    = "dev.daminithorat.me"
-  type    = "A"
-  ttl     = 300
-  records = [aws_instance.web_server.public_ip]
-}
+# resource "aws_route53_record" "webapp_a_record_dev" {
+#   zone_id = aws_route53_zone.dev_zone.zone_id
+#   name    = "dev.daminithorat.me"
+#   type    = "A"
+#   ttl     = 300
+#   records = [aws_instance.web_server.public_ip]
+# }
 
 resource "aws_route53_record" "webapp_a_record_demo" {
-  zone_id = aws_route53_zone.demo_zone.zone_id
-  name    = "demo.daminithorat.me"
+  zone_id = var.demo_hosted_id
+  name    = var.a_record
   type    = "A"
   ttl     = 300
   records = [aws_instance.web_server.public_ip]

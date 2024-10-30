@@ -76,3 +76,11 @@ variable "s3_bucket_name" {
   description = "Name of the S3 bucket for storing images"
   type        = string
 }
+
+variable "demo_hosted_id" {
+  default     = "Z04773211HKUM7JMJU657"
+}
+
+variable "a_record" {
+  default     = "demo.daminithorat.me"
+}
