@@ -1,14 +1,14 @@
 # IAM Role for EC2 with permissions for S3 and CloudWatch access
 resource "aws_iam_role" "ec2_role" {
-  name               = "${var.vpc_name}-ec2-role"
+  name = "${var.vpc_name}-ec2-role"
   assume_role_policy = jsonencode({
-    "Version": "2012-10-17",
-    "Statement": [
+    "Version" : "2012-10-17",
+    "Statement" : [
       {
-        "Action": "sts:AssumeRole",
-        "Effect": "Allow",
-        "Principal": {
-          "Service": "ec2.amazonaws.com"
+        "Action" : "sts:AssumeRole",
+        "Effect" : "Allow",
+        "Principal" : {
+          "Service" : "ec2.amazonaws.com"
         }
       }
     ]
@@ -19,37 +19,37 @@ resource "aws_iam_role" "ec2_role" {
 resource "aws_iam_policy" "ec2_s3_cloudwatch_policy" {
   name = "${var.vpc_name}-ec2-s3-cloudwatch-policy"
   policy = jsonencode({
-    "Version": "2012-10-17",
-    "Statement": [
+    "Version" : "2012-10-17",
+    "Statement" : [
       {
-        "Effect": "Allow",
-        "Action": [
+        "Effect" : "Allow",
+        "Action" : [
           "s3:PutObject",
           "s3:GetObject",
           "s3:ListBucket",
-          "s3:DeleteObject"  # Allow deletion to ensure bucket can be emptied
+          "s3:DeleteObject" # Allow deletion to ensure bucket can be emptied
         ],
-        "Resource": [
+        "Resource" : [
           "${aws_s3_bucket.private_bucket.arn}",
           "${aws_s3_bucket.private_bucket.arn}/*"
         ]
       },
       {
-        "Effect": "Allow",
-        "Action": [
+        "Effect" : "Allow",
+        "Action" : [
           "cloudwatch:PutMetricData",
           "logs:CreateLogStream",
           "logs:PutLogEvents",
           "logs:CreateLogGroup"
         ],
-        "Resource": "*"
+        "Resource" : "*"
       },
       {
-        "Effect": "Allow",
-        "Action": [
-          "ec2:DescribeTags"  # Allows CloudWatch Agent to retrieve EC2 tags for the instance
+        "Effect" : "Allow",
+        "Action" : [
+          "ec2:DescribeTags" # Allows CloudWatch Agent to retrieve EC2 tags for the instance
         ],
-        "Resource": "*"
+        "Resource" : "*"
       }
     ]
   })

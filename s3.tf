@@ -3,8 +3,8 @@ resource "random_uuid" "bucket_uuid" {}
 
 # Private S3 Bucket with encryption and random UUID
 resource "aws_s3_bucket" "private_bucket" {
-  bucket = "damini-profile-${random_uuid.bucket_uuid.result}"
-  acl    = "private"
+  bucket        = "damini-profile-${random_uuid.bucket_uuid.result}"
+  acl           = "private"
   force_destroy = true
 
   server_side_encryption_configuration {
