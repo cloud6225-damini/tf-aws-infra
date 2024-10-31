@@ -81,6 +81,54 @@ resource "aws_route_table_association" "private_association" {
   route_table_id = aws_route_table.private_rt.id
 }
 
+# Route 53 Hosted Zones for Domain and Subdomains
+# resource "aws_route53_zone" "root_zone" {
+#   name = "daminithorat.me"
+# }
+
+# resource "aws_route53_zone" "dev_zone" {
+#   name = "dev.daminithorat.me"
+# }
+
+# resource "aws_route53_zone" "demo_zone" {
+#   name = "demo.daminithorat.me"
+# }
+
+# # Name server delegation for subdomains in Root Account
+# resource "aws_route53_record" "dev_ns" {
+#   zone_id = aws_route53_zone.root_zone.zone_id
+#   name    = "dev"
+#   type    = "NS"
+#   ttl     = 300
+#   records = aws_route53_zone.dev_zone.name_servers
+# }
+
+# resource "aws_route53_record" "demo_ns" {
+#   zone_id = aws_route53_zone.root_zone.zone_id
+#   name    = "demo"
+#   type    = "NS"
+#   ttl     = 300
+#   records = aws_route53_zone.demo_zone.name_servers
+# }
+
+# DNS A Record for EC2 Instances
+# resource "aws_route53_record" "webapp_a_record_dev" {
+#   zone_id = aws_route53_zone.dev_zone.zone_id
+#   name    = "dev.daminithorat.me"
+#   type    = "A"
+#   ttl     = 300
+#   records = [aws_instance.web_server.public_ip]
+# }
+
+resource "aws_route53_record" "webapp_a_record_demo" {
+  zone_id = var.demo_hosted_id
+  name    = var.a_record
+  type    = "A"
+  ttl     = 300
+  records = [aws_instance.web_server.public_ip]
+}
+
+
 # Application Security Group
 resource "aws_security_group" "app_sg" {
   vpc_id = aws_vpc.main_vpc.id
@@ -195,6 +243,12 @@ resource "aws_db_instance" "mysql" {
   }
 }
 
+# IAM Instance Profile for EC2
+resource "aws_iam_instance_profile" "ec2_instance_profile" {
+  name = "${var.vpc_name}-ec2-instance-profile"
+  role = aws_iam_role.ec2_role.name
+}
+
 # EC2 Instance for Web Application
 resource "aws_instance" "web_server" {
   ami                         = var.custom_ami
@@ -202,20 +256,43 @@ resource "aws_instance" "web_server" {
   subnet_id                   = aws_subnet.public[0].id
   vpc_security_group_ids      = [aws_security_group.app_sg.id]
   associate_public_ip_address = true
+  iam_instance_profile        = aws_iam_instance_profile.cloudwatch_agent_instance_profile.name # Updated to match the IAM profile name
 
   # User data script
   user_data = <<-EOF
-              #!/bin/bash
-              rm -f /opt/webapp/.env  # Delete the existing .env file if it exists
-              echo "DB_HOST=${aws_db_instance.mysql.address}" > /opt/webapp/.env
-              echo "DB_PORT=3306" >> /opt/webapp/.env  
-              echo "DB_USER=csye6225" >> /opt/webapp/.env
-              echo "DB_PASSWORD=${var.db_password}" >> /opt/webapp/.env
-              echo "DB_NAME=csye6225" >> /opt/webapp/.env
-              echo "DB_DIALECT=mysql" >> /opt/webapp/.env
-              echo "PORT=${var.app_port}" >> /opt/webapp/.env
-              sudo systemctl restart webapp.service
-              EOF
+    #!/bin/bash
+    # Set up environment variables for database, SendGrid, and S3
+    rm -f /opt/webapp/.env
+    echo "DB_HOST=${aws_db_instance.mysql.address}" > /opt/webapp/.env
+    echo "DB_PORT=3306" >> /opt/webapp/.env  
+    echo "DB_USER=csye6225" >> /opt/webapp/.env
+    echo "DB_PASSWORD=${var.db_password}" >> /opt/webapp/.env
+    echo "DB_NAME=csye6225" >> /opt/webapp/.env
+    echo "DB_DIALECT=mysql" >> /opt/webapp/.env
+    echo "PORT=${var.app_port}" >> /opt/webapp/.env
+    echo "SENDGRID_API_KEY=${var.sendgrid_api_key}" >> /opt/webapp/.env
+    echo "S3_BUCKET_NAME=${aws_s3_bucket.private_bucket.bucket}" >> /opt/webapp/.env
+    echo "AWS_REGION=${var.aws_region}" >> /opt/webapp/.env
+
+    # Ensure the log file exists with correct permissions
+    sudo touch /var/log/webapp.log
+    sudo chown csye6225:csye6225 /var/log/webapp.log
+    sudo chmod 664 /var/log/webapp.log
+
+    # Install CloudWatch Agent if it's not already installed
+    if [ ! -f /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent ]; then
+      wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
+      sudo dpkg -i amazon-cloudwatch-agent.deb
+    fi
+
+    # Start CloudWatch Agent with specified configuration
+    sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a start -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
+
+    # Install and start the web application
+    cd /opt/webapp/app
+    npm install
+    node server.js &
+  EOF
 
   root_block_device {
     volume_size           = 25
@@ -229,3 +306,5 @@ resource "aws_instance" "web_server" {
     Name = "${var.vpc_name}-webapp-instance"
   }
 }
+
+
