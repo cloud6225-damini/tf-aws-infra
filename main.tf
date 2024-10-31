@@ -256,32 +256,43 @@ resource "aws_instance" "web_server" {
   subnet_id                   = aws_subnet.public[0].id
   vpc_security_group_ids      = [aws_security_group.app_sg.id]
   associate_public_ip_address = true
-  iam_instance_profile        = aws_iam_instance_profile.ec2_instance_profile.name
+  iam_instance_profile        = aws_iam_instance_profile.cloudwatch_agent_instance_profile.name # Updated to match the IAM profile name
 
   # User data script
   user_data = <<-EOF
-              #!/bin/bash
-              # Export environment variables for database and SendGrid
-              rm -f /opt/webapp/.env
-              echo "DB_HOST=${aws_db_instance.mysql.address}" > /opt/webapp/.env
-              echo "DB_PORT=3306" >> /opt/webapp/.env  
-              echo "DB_USER=csye6225" >> /opt/webapp/.env
-              echo "DB_PASSWORD=${var.db_password}" >> /opt/webapp/.env
-              echo "DB_NAME=csye6225" >> /opt/webapp/.env
-              echo "DB_DIALECT=mysql" >> /opt/webapp/.env
-              echo "PORT=${var.app_port}" >> /opt/webapp/.env
-              echo "SENDGRID_API_KEY=${var.sendgrid_api_key}" >> /opt/webapp/.env
-              echo "S3_BUCKET_NAME=${aws_s3_bucket.private_bucket.bucket}" >> /opt/webapp/.env
-              echo "AWS_REGION=${var.aws_region}" >> /opt/webapp/.env
-              
-              # Start CloudWatch Agent (uncomment if needed)
-              # sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a start -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
-              
-              # Install Node.js dependencies and start the web application
-              cd /opt/webapp/app
-              npm install
-              node server.js &
-              EOF
+    #!/bin/bash
+    # Set up environment variables for database, SendGrid, and S3
+    rm -f /opt/webapp/.env
+    echo "DB_HOST=${aws_db_instance.mysql.address}" > /opt/webapp/.env
+    echo "DB_PORT=3306" >> /opt/webapp/.env  
+    echo "DB_USER=csye6225" >> /opt/webapp/.env
+    echo "DB_PASSWORD=${var.db_password}" >> /opt/webapp/.env
+    echo "DB_NAME=csye6225" >> /opt/webapp/.env
+    echo "DB_DIALECT=mysql" >> /opt/webapp/.env
+    echo "PORT=${var.app_port}" >> /opt/webapp/.env
+    echo "SENDGRID_API_KEY=${var.sendgrid_api_key}" >> /opt/webapp/.env
+    echo "S3_BUCKET_NAME=${aws_s3_bucket.private_bucket.bucket}" >> /opt/webapp/.env
+    echo "AWS_REGION=${var.aws_region}" >> /opt/webapp/.env
+
+    # Ensure the log file exists with correct permissions
+    sudo touch /var/log/webapp.log
+    sudo chown csye6225:csye6225 /var/log/webapp.log
+    sudo chmod 664 /var/log/webapp.log
+
+    # Install CloudWatch Agent if it's not already installed
+    if [ ! -f /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent ]; then
+      wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
+      sudo dpkg -i amazon-cloudwatch-agent.deb
+    fi
+
+    # Start CloudWatch Agent with specified configuration
+    sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a start -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
+
+    # Install and start the web application
+    cd /opt/webapp/app
+    npm install
+    node server.js &
+  EOF
 
   root_block_device {
     volume_size           = 25
@@ -295,4 +306,5 @@ resource "aws_instance" "web_server" {
     Name = "${var.vpc_name}-webapp-instance"
   }
 }
+
 
