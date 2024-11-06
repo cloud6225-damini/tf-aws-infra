@@ -271,9 +271,9 @@ EOF
 # Auto Scaling Group for EC2 Instances
 # Filter subnets to only those in available zones (ca-central-1a and ca-central-1b)
 resource "aws_autoscaling_group" "web_asg" {
-  desired_capacity     = 3
+  desired_capacity     = 1
   max_size             = 5
-  min_size             = 3
+  min_size             = 1
   vpc_zone_identifier  = [
     aws_subnet.public[0].id,  # Assuming this is in ca-central-1a
     aws_subnet.public[1].id   # Assuming this is in ca-central-1b
@@ -295,36 +295,27 @@ resource "aws_autoscaling_group" "web_asg" {
   health_check_type         = "EC2"
 }
 
-
-# Auto Scaling Policies
 # Scale Up Policy
 resource "aws_autoscaling_policy" "scale_up" {
-  name                   = "scale_up"
-  policy_type            = "TargetTrackingScaling"
+  name                   = "scale_up_policy"
+  scaling_adjustment     = 1
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 60
   autoscaling_group_name = aws_autoscaling_group.web_asg.name
 
-  target_tracking_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "ASGAverageCPUUtilization"
-    }
-    target_value = 5.0
-  }
+  metric_aggregation_type = "Average"
 }
 
 # Scale Down Policy
 resource "aws_autoscaling_policy" "scale_down" {
-  name                   = "scale_down"
-  policy_type            = "TargetTrackingScaling"
+  name                   = "scale_down_policy"
+  scaling_adjustment     = -1
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 60
   autoscaling_group_name = aws_autoscaling_group.web_asg.name
 
-  target_tracking_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "ASGAverageCPUUtilization"
-    }
-    target_value = 3.0
-  }
+  metric_aggregation_type = "Average"
 }
-
 
 # Application Load Balancer
 resource "aws_lb" "web_app_alb" {
@@ -380,3 +371,39 @@ resource "aws_route53_record" "web_app_alias" {
     evaluate_target_health = true
   }
 }
+
+
+# Scale-Up Alarm
+resource "aws_cloudwatch_metric_alarm" "scale_up_alarm" {
+  alarm_name          = "scale_up_alarm"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 5
+  alarm_description   = "Alarm when CPU usage exceeds 5%"
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.web_asg.name
+  }
+  alarm_actions = [aws_autoscaling_policy.scale_up.arn]
+}
+
+# Scale-Down Alarm
+resource "aws_cloudwatch_metric_alarm" "scale_down_alarm" {
+  alarm_name          = "scale_down_alarm"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 3
+  alarm_description   = "Alarm when CPU usage is below 3%"
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.web_asg.name
+  }
+  alarm_actions = [aws_autoscaling_policy.scale_down.arn]
+}
+
