@@ -273,17 +273,17 @@ EOF
 resource "aws_autoscaling_group" "web_asg" {
   desired_capacity = 1
   max_size         = 5
-  min_size         = 1
+  min_size         = 3
   vpc_zone_identifier = [
-    aws_subnet.public[0].id, # Assuming this is in ca-central-1a
-    aws_subnet.public[1].id  # Assuming this is in ca-central-1b
+    aws_subnet.public[0].id,
+    aws_subnet.public[1].id
   ]
   launch_template {
     id      = aws_launch_template.web_app_lt.id
     version = "$Latest"
   }
 
-  target_group_arns = [aws_lb_target_group.app_tg.arn] # Attach ASG to target group
+  target_group_arns = [aws_lb_target_group.app_tg.arn]
 
   tag {
     key                 = "Name"
@@ -382,8 +382,8 @@ resource "aws_cloudwatch_metric_alarm" "scale_up_alarm" {
   namespace           = "AWS/EC2"
   period              = 60
   statistic           = "Average"
-  threshold           = 8
-  alarm_description   = "Alarm when CPU usage exceeds 8%"
+  threshold           = 5
+  alarm_description   = "Alarm when CPU usage exceeds 5%"
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.web_asg.name
   }
@@ -399,8 +399,8 @@ resource "aws_cloudwatch_metric_alarm" "scale_down_alarm" {
   namespace           = "AWS/EC2"
   period              = 60
   statistic           = "Average"
-  threshold           = 7
-  alarm_description   = "Alarm when CPU usage is below 7%"
+  threshold           = 3
+  alarm_description   = "Alarm when CPU usage is below 3%"
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.web_asg.name
   }
