@@ -271,12 +271,12 @@ EOF
 # Auto Scaling Group for EC2 Instances
 # Filter subnets to only those in available zones (ca-central-1a and ca-central-1b)
 resource "aws_autoscaling_group" "web_asg" {
-  desired_capacity     = 1
-  max_size             = 5
-  min_size             = 1
-  vpc_zone_identifier  = [
-    aws_subnet.public[0].id,  # Assuming this is in ca-central-1a
-    aws_subnet.public[1].id   # Assuming this is in ca-central-1b
+  desired_capacity = 1
+  max_size         = 5
+  min_size         = 1
+  vpc_zone_identifier = [
+    aws_subnet.public[0].id, # Assuming this is in ca-central-1a
+    aws_subnet.public[1].id  # Assuming this is in ca-central-1b
   ]
   launch_template {
     id      = aws_launch_template.web_app_lt.id
