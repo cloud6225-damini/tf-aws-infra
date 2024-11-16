@@ -241,6 +241,7 @@ echo "SENDGRID_API_KEY=${var.sendgrid_api_key}" >> /opt/webapp/.env
 echo "S3_BUCKET_NAME=${aws_s3_bucket.private_bucket.bucket}" >> /opt/webapp/.env
 echo "AWS_REGION=${var.aws_region}" >> /opt/webapp/.env
 echo "SNS_TOPIC_ARN=${aws_sns_topic.email_verification_topic.arn}" >> /opt/webapp/.env
+echo "SENDER_EMAIL=no-reply@demo.daminithorat.me" >> /opt/webapp/.env
 # Ensure the log file exists with correct permissions
 sudo touch /var/log/webapp.log
 sudo chown csye6225:csye6225 /var/log/webapp.log
@@ -481,16 +482,17 @@ resource "aws_lambda_function" "email_verification_lambda" {
   handler       = "lambda_function.handler"
   runtime       = "nodejs18.x"
 
-  filename         = var.lambda_package_path # Path to Lambda function code
+  filename         = var.lambda_package_path
   source_code_hash = filebase64sha256(var.lambda_package_path)
 
   environment {
     variables = {
-      SNS_TOPIC_ARN = aws_sns_topic.email_verification_topic.arn
-      DB_HOST       = aws_db_instance.mysql.address
-      DB_USER       = var.db_username
-      DB_PASSWORD   = var.db_password
-      DB_NAME       = var.db_name
+      SENDGRID_API_KEY = var.sendgrid_api_key
+      SENDER_EMAIL     = "no-reply@demo.daminithorat.me" 
+      DB_HOST          = aws_db_instance.mysql.address
+      DB_USER          = var.db_username
+      DB_PASSWORD      = var.db_password
+      DB_NAME          = var.db_name
     }
   }
 
@@ -498,6 +500,7 @@ resource "aws_lambda_function" "email_verification_lambda" {
     Name = "${var.vpc_name}-lambda"
   }
 }
+
 
 # SNS Topic Subscription to Lambda
 resource "aws_sns_topic_subscription" "lambda_sns_subscription" {
@@ -540,16 +543,16 @@ resource "aws_iam_role_policy_attachment" "lambda_cloudwatch_logs_attachment" {
 
 # IAM Policy for EC2 Role to Allow SNS Publish
 resource "aws_iam_policy" "ec2_sns_publish_policy" {
-  name   = "${var.vpc_name}-ec2-sns-publish-policy"
+  name = "${var.vpc_name}-ec2-sns-publish-policy"
   policy = jsonencode({
-    "Version": "2012-10-17",
-    "Statement": [
+    "Version" : "2012-10-17",
+    "Statement" : [
       {
-        "Effect": "Allow",
-        "Action": [
+        "Effect" : "Allow",
+        "Action" : [
           "sns:Publish"
         ],
-        "Resource": aws_sns_topic.email_verification_topic.arn
+        "Resource" : aws_sns_topic.email_verification_topic.arn
       }
     ]
   })

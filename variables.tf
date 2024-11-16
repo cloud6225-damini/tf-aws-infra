@@ -111,3 +111,9 @@ variable "lambda_package_path" {
 }
 
 
+
+variable "sender_email" {
+  description = "Verified sender email for SendGrid"
+  type        = string
+  default     = "no-reply@demo.daminithorat.me"
+}
