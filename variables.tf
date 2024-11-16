@@ -102,3 +102,12 @@ variable "asg_desired_capacity" {
   type        = number
   default     = 3
 }
+
+# variables.tf
+variable "lambda_package_path" {
+  description = "Path to the Lambda deployment package"
+  type        = string
+  default     = "/Users/daminithorat/Desktop/Damini NEU/Fall 2024/CSYE 6225 Network Structures and Cloud Computing/serverless/serverless-fork/lambda_function.zip"
+}
+
+
