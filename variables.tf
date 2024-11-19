@@ -117,3 +117,9 @@ variable "sender_email" {
   type        = string
   default     = "no-reply@demo.daminithorat.me"
 }
+
+variable "domain" {
+  description = "domain"
+  type        = string
+  default     = "demo.daminithorat.me"
+}

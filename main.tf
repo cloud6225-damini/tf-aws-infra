@@ -241,7 +241,9 @@ echo "SENDGRID_API_KEY=${var.sendgrid_api_key}" >> /opt/webapp/.env
 echo "S3_BUCKET_NAME=${aws_s3_bucket.private_bucket.bucket}" >> /opt/webapp/.env
 echo "AWS_REGION=${var.aws_region}" >> /opt/webapp/.env
 echo "SNS_TOPIC_ARN=${aws_sns_topic.email_verification_topic.arn}" >> /opt/webapp/.env
-echo "SENDER_EMAIL=no-reply@demo.daminithorat.me" >> /opt/webapp/.env
+echo "SENDER_EMAIL=${var.sender_email}" >> /opt/webapp/.env
+echo "DOMAIN=${var.domain}" >> /opt/webapp/.env
+
 # Ensure the log file exists with correct permissions
 sudo touch /var/log/webapp.log
 sudo chown csye6225:csye6225 /var/log/webapp.log
@@ -294,7 +296,17 @@ resource "aws_autoscaling_group" "web_asg" {
 
   health_check_grace_period = 300
   health_check_type         = "EC2"
+
+  # Add Instance Refresh Trigger
+  instance_refresh {
+    strategy = "Rolling"
+    preferences {
+      min_healthy_percentage = 100
+      instance_warmup        = 300
+    }
+  }
 }
+
 
 # Scale Up Policy
 resource "aws_autoscaling_policy" "scale_up" {
@@ -375,38 +387,38 @@ resource "aws_route53_record" "web_app_alias" {
 
 
 # Scale-Up Alarm
-# resource "aws_cloudwatch_metric_alarm" "scale_up_alarm" {
-#   alarm_name          = "scale_up_alarm"
-#   comparison_operator = "GreaterThanThreshold"
-#   evaluation_periods  = 1
-#   metric_name         = "CPUUtilization"
-#   namespace           = "AWS/EC2"
-#   period              = 60
-#   statistic           = "Average"
-#   threshold           = 8
-#   alarm_description   = "Alarm when CPU usage exceeds 8%"
-#   dimensions = {
-#     AutoScalingGroupName = aws_autoscaling_group.web_asg.name
-#   }
-#   alarm_actions = [aws_autoscaling_policy.scale_up.arn]
-# }
+resource "aws_cloudwatch_metric_alarm" "scale_up_alarm" {
+  alarm_name          = "scale_up_alarm"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 75
+  alarm_description   = "Alarm when CPU usage exceeds 75%"
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.web_asg.name
+  }
+  alarm_actions = [aws_autoscaling_policy.scale_up.arn]
+}
 
 # Scale-Down Alarm
-# resource "aws_cloudwatch_metric_alarm" "scale_down_alarm" {
-#   alarm_name          = "scale_down_alarm"
-#   comparison_operator = "LessThanThreshold"
-#   evaluation_periods  = 1
-#   metric_name         = "CPUUtilization"
-#   namespace           = "AWS/EC2"
-#   period              = 60
-#   statistic           = "Average"
-#   threshold           = 5
-#   alarm_description   = "Alarm when CPU usage is below 5%"
-#   dimensions = {
-#     AutoScalingGroupName = aws_autoscaling_group.web_asg.name
-#   }
-#   alarm_actions = [aws_autoscaling_policy.scale_down.arn]
-# }
+resource "aws_cloudwatch_metric_alarm" "scale_down_alarm" {
+  alarm_name          = "scale_down_alarm"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 5
+  alarm_description   = "Alarm when CPU usage is below 5%"
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.web_asg.name
+  }
+  alarm_actions = [aws_autoscaling_policy.scale_down.arn]
+}
 
 # SNS Topic for User Verification
 resource "aws_sns_topic" "email_verification_topic" {
