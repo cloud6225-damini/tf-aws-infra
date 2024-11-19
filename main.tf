@@ -241,9 +241,7 @@ echo "SENDGRID_API_KEY=${var.sendgrid_api_key}" >> /opt/webapp/.env
 echo "S3_BUCKET_NAME=${aws_s3_bucket.private_bucket.bucket}" >> /opt/webapp/.env
 echo "AWS_REGION=${var.aws_region}" >> /opt/webapp/.env
 echo "SNS_TOPIC_ARN=${aws_sns_topic.email_verification_topic.arn}" >> /opt/webapp/.env
-echo "SENDER_EMAIL=${var.sender_email}" >> /opt/webapp/.env
-echo "DOMAIN=${var.domain}" >> /opt/webapp/.env
-
+echo "SENDER_EMAIL=no-reply@demo.daminithorat.me" >> /opt/webapp/.env
 # Ensure the log file exists with correct permissions
 sudo touch /var/log/webapp.log
 sudo chown csye6225:csye6225 /var/log/webapp.log
@@ -500,8 +498,7 @@ resource "aws_lambda_function" "email_verification_lambda" {
   environment {
     variables = {
       SENDGRID_API_KEY = var.sendgrid_api_key
-      SENDER_EMAIL     = var.sender_email
-      DOMAIN           = var.domain
+      SENDER_EMAIL     = "no-reply@demo.daminithorat.me"
       DB_HOST          = aws_db_instance.mysql.address
       DB_USER          = var.db_username
       DB_PASSWORD      = var.db_password
