@@ -28,7 +28,7 @@ jobs:
       - name: Run terraform fmt
         run: terraform fmt -check 
 
-      # Step 4: Run terraform validate to check the syntax of tf files
+      # Step 4: Run terraform validate to check the syntax
       - name: Run terraform validate
         run: terraform validate
 
