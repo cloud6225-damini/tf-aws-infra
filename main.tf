@@ -500,7 +500,8 @@ resource "aws_lambda_function" "email_verification_lambda" {
   environment {
     variables = {
       SENDGRID_API_KEY = var.sendgrid_api_key
-      SENDER_EMAIL     = "no-reply@demo.daminithorat.me" 
+      SENDER_EMAIL     = var.sender_email
+      DOMAIN           = var.domain
       DB_HOST          = aws_db_instance.mysql.address
       DB_USER          = var.db_username
       DB_PASSWORD      = var.db_password
