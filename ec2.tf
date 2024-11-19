@@ -1,4 +1,4 @@
-# IAM Role for EC2 with permissions for S3 and CloudWatch access
+# IAM Role for EC2 with permissions for S3 and CloudWatch acces
 resource "aws_iam_role" "ec2_role" {
   name = "${var.vpc_name}-ec2-role"
   assume_role_policy = jsonencode({
