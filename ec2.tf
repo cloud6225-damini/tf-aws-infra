@@ -15,7 +15,7 @@ resource "aws_iam_role" "ec2_role" {
   })
 }
 
-# IAM Policy for EC2 to access S3 bucket, CloudWatch logs, metrics, and EC2 tags
+# IAM Policy for EC2 to access S3 bucket, CloudWatch logs, metrics and EC2 tags
 resource "aws_iam_policy" "ec2_s3_cloudwatch_policy" {
   name = "${var.vpc_name}-ec2-s3-cloudwatch-policy"
   policy = jsonencode({
