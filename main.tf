@@ -519,7 +519,6 @@ resource "aws_route53_record" "web_app_alias" {
   }
 }
 
-
 # Scale-Up Alarm
 resource "aws_cloudwatch_metric_alarm" "scale_up_alarm" {
   alarm_name          = "scale_up_alarm"
