@@ -405,8 +405,6 @@ EOF
   }
 }
 
-
-
 # Auto Scaling Group for EC2 Instances
 # Filter subnets to only those in available zones (ca-central-1a and ca-central-1b)
 resource "aws_autoscaling_group" "web_asg" {
