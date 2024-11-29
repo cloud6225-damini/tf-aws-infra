@@ -78,7 +78,7 @@ resource "aws_iam_policy" "ec2_kms_policy" {
           "kms:Decrypt"
         ],
         "Resource" : [
-         "${aws_kms_key.secrets_manager_key.arn}" # Replace <kms_key_id> with your actual KMS key ID
+          "${aws_kms_key.secrets_manager_key.arn}" # Replace <kms_key_id> with your actual KMS key ID
         ]
       }
     ]
@@ -104,7 +104,7 @@ resource "aws_iam_instance_profile" "cloudwatch_agent_instance_profile" {
 }
 
 resource "random_password" "rds_password" {
-  length  = 16
-  special = true
+  length           = 16
+  special          = true
   override_special = "!#$%&()*+-.:;<=>?[]^_{|}~" # Exclude problematic characters
 }
