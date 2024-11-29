@@ -32,12 +32,6 @@ variable "app_port" {
   default     = 3000
 }
 
-# Database Password
-variable "db_password" {
-  description = "Password for the RDS instance"
-  type        = string
-  default     = "23101996"
-}
 
 variable "db_port" {
   default = "3306"
