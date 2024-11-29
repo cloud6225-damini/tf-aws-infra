@@ -3,6 +3,63 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+# KMS Keys for encryption
+resource "aws_kms_key" "ec2_key" {
+  description             = "KMS Key for EC2"
+  enable_key_rotation     = true
+  deletion_window_in_days = 30
+  tags = {
+    Name = "${var.vpc_name}-ec2-kms-key"
+  }
+}
+
+resource "aws_kms_key" "rds_key" {
+  description             = "KMS Key for RDS"
+  enable_key_rotation     = true
+  deletion_window_in_days = 30
+  tags = {
+    Name = "${var.vpc_name}-rds-kms-key"
+  }
+}
+
+resource "aws_kms_key" "secrets_manager_key" {
+  description             = "KMS Key for Secrets Manager"
+  enable_key_rotation     = true
+  deletion_window_in_days = 30
+  tags = {
+    Name = "${var.vpc_name}-secrets-manager-kms-key"
+  }
+}
+
+
+# Secrets Manager for DB Credentials
+resource "aws_secretsmanager_secret" "db_password" {
+  name       = "dbsecretkms4"
+  kms_key_id = aws_kms_key.secrets_manager_key.id
+}
+
+resource "aws_secretsmanager_secret_version" "db_password_version" {
+  secret_id = aws_secretsmanager_secret.db_password.id
+  secret_string = jsonencode({
+    username = "csye6225"
+    password = random_password.rds_password.result
+  })
+}
+
+
+# Secrets Manager for Email Credentials
+resource "aws_secretsmanager_secret" "email_service" {
+  name       = "emailsecretkms4"
+  kms_key_id = aws_kms_key.secrets_manager_key.id
+}
+
+resource "aws_secretsmanager_secret_version" "email_service_version" {
+  secret_id = aws_secretsmanager_secret.email_service.id
+  secret_string = jsonencode({
+    SENDGRID_API_KEY = var.sendgrid_api_key
+  })
+}
+
 # VPC Resource
 resource "aws_vpc" "main_vpc" {
   cidr_block           = var.vpc_cidr
@@ -206,8 +263,9 @@ resource "aws_db_instance" "mysql" {
   instance_class         = "db.t3.micro"
   db_name                = "csye6225"
   username               = "csye6225"
-  password               = var.db_password
-  parameter_group_name   = aws_db_parameter_group.mysql_parameter_group.name
+  password               = random_password.rds_password.result
+  storage_encrypted      = true
+  kms_key_id             = aws_kms_key.rds_key.arn
   publicly_accessible    = false
   skip_final_snapshot    = true
   vpc_security_group_ids = [aws_security_group.db_sg.id]
@@ -216,6 +274,9 @@ resource "aws_db_instance" "mysql" {
     Name = "${var.vpc_name}-mysql-rds"
   }
 }
+
+
+data "aws_caller_identity" "current" {}
 
 # Launch Template for Auto Scaling Group
 resource "aws_launch_template" "web_app_lt" {
@@ -234,37 +295,108 @@ resource "aws_launch_template" "web_app_lt" {
 
   user_data = base64encode(<<EOF
 #!/bin/bash
-rm -f /opt/webapp/.env
-echo "DB_HOST=${aws_db_instance.mysql.address}" > /opt/webapp/.env
-echo "DB_PORT=3306" >> /opt/webapp/.env
-echo "DB_USER=csye6225" >> /opt/webapp/.env
-echo "DB_PASSWORD=${var.db_password}" >> /opt/webapp/.env
-echo "DB_NAME=csye6225" >> /opt/webapp/.env
-echo "DB_DIALECT=mysql" >> /opt/webapp/.env
-echo "PORT=${var.app_port}" >> /opt/webapp/.env
-echo "SENDGRID_API_KEY=${var.sendgrid_api_key}" >> /opt/webapp/.env
-echo "S3_BUCKET_NAME=${aws_s3_bucket.private_bucket.bucket}" >> /opt/webapp/.env
-echo "AWS_REGION=${var.aws_region}" >> /opt/webapp/.env
-echo "SNS_TOPIC_ARN=${aws_sns_topic.email_verification_topic.arn}" >> /opt/webapp/.env
-echo "SENDER_EMAIL=no-reply@demo.daminithorat.me" >> /opt/webapp/.env
-# Ensure the log file exists with correct permissions
-sudo touch /var/log/webapp.log
-sudo chown csye6225:csye6225 /var/log/webapp.log
-sudo chmod 664 /var/log/webapp.log
 
-# Install CloudWatch Agent if it's not already installed
-if [ ! -f /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent ]; then
-  wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
-  sudo dpkg -i amazon-cloudwatch-agent.deb
+# Redirect output to a log file for debugging
+exec > /var/log/user-data.log 2>&1
+set -x
+
+# Update and install necessary packages
+sudo apt-get update
+sudo apt-get install -y jq wget unzip build-essential curl
+
+# Install AWS CLI from Amazon's official source
+echo "Installing AWS CLI..."
+wget "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -O "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+aws --version
+
+# Install Node.js and npm
+echo "Installing Node.js and npm..."
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+node --version
+npm --version
+
+# Define variables
+AWS_REGION="ca-central-1"
+DB_SECRET_ID="dbsecretkms4"
+EMAIL_SECRET_ID="emailsecretkms4"
+
+# Retrieve database credentials from Secrets Manager
+echo "Retrieving database credentials..."
+DB_SECRET=$(aws secretsmanager get-secret-value --secret-id $DB_SECRET_ID --query SecretString --output text --region $AWS_REGION)
+if [ $? -ne 0 ]; then
+    echo "Failed to retrieve database secret from Secrets Manager."
+    exit 1
 fi
 
-# Start CloudWatch Agent with specified configuration
-sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a start -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
+DB_USERNAME=$(echo $DB_SECRET | jq -r '.username')
+DB_PASSWORD=$(echo $DB_SECRET | jq -r '.password')
 
-# Install and start the web application
-cd /opt/webapp/app
+# Check if DB_USERNAME and DB_PASSWORD are populated
+if [ -z "$DB_USERNAME" ] || [ -z "$DB_PASSWORD" ]; then
+    echo "Database username or password is missing!"
+    exit 1
+fi
+
+# Retrieve email credentials from Secrets Manager
+echo "Retrieving email service credentials..."
+EMAIL_SECRET=$(aws secretsmanager get-secret-value --secret-id $EMAIL_SECRET_ID --query SecretString --output text --region $AWS_REGION)
+if [ $? -ne 0 ]; then
+    echo "Failed to retrieve email service secret from Secrets Manager."
+    exit 1
+fi
+
+SENDGRID_API_KEY=$(echo $EMAIL_SECRET | jq -r '.SENDGRID_API_KEY')
+
+# Check if SENDGRID_API_KEY is populated
+if [ -z "$SENDGRID_API_KEY" ]; then
+    echo "SendGrid API Key is missing!"
+    exit 1
+fi
+
+# Generate .env file for the web application
+echo "Creating .env file..."
+rm -f /opt/webapp/.env
+cat <<EOL > /opt/webapp/.env
+DB_HOST=${aws_db_instance.mysql.address}
+DB_PORT=3306
+DB_USER=$DB_USERNAME
+DB_PASSWORD=$DB_PASSWORD
+DB_NAME=csye6225
+DB_DIALECT=mysql
+PORT=${var.app_port}
+SENDGRID_API_KEY=$SENDGRID_API_KEY
+S3_BUCKET_NAME=${aws_s3_bucket.private_bucket.bucket}
+AWS_REGION=${var.aws_region}
+SNS_TOPIC_ARN=${aws_sns_topic.email_verification_topic.arn}
+SENDER_EMAIL=no-reply@demo.daminithorat.me
+EOL
+
+# Display the generated .env file for debugging
+echo "Generated .env file:"
+cat /opt/webapp/.env
+
+# Ensure application directory exists
+if [ ! -d "/opt/webapp/app" ]; then
+    echo "Application directory /opt/webapp/app does not exist!"
+    exit 1
+fi
+
+# Change to the application directory and install dependencies
+echo "Installing application dependencies..."
+cd /opt/webapp/app || exit 1
 npm install
-node server.js &
+
+# Start the application server
+echo "Starting the web application..."
+node server.js > /var/log/webapp.log 2>&1 &
+
+# Verify that the server started
+echo "Application process:"
+ps aux | grep "node server.js"
+
 EOF
   )
 
@@ -272,6 +404,7 @@ EOF
     create_before_destroy = true
   }
 }
+
 
 
 # Auto Scaling Group for EC2 Instances
@@ -451,6 +584,7 @@ resource "aws_iam_role" "lambda_execution_role" {
 }
 
 # IAM Policy for Lambda
+# IAM Policy for Lambda
 resource "aws_iam_policy" "lambda_policy" {
   name = "${var.vpc_name}-lambda-policy"
   policy = jsonencode({
@@ -478,10 +612,30 @@ resource "aws_iam_policy" "lambda_policy" {
           "sns:Publish"
         ],
         "Resource" : aws_sns_topic.email_verification_topic.arn
+      },
+      {
+        "Effect" : "Allow",
+        "Action" : [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ],
+        "Resource" : [
+          "${aws_secretsmanager_secret.email_service.arn}",
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:emailsec"
+        ]
+      },
+      {
+        "Effect" : "Allow",
+        "Action" : [
+          "kms:Decrypt"
+        ],
+        "Resource" : "${aws_kms_key.secrets_manager_key.arn}" # Replace with your actual KMS key reference
       }
     ]
   })
 }
+
+
 
 # Attach IAM Policy to IAM Role
 resource "aws_iam_role_policy_attachment" "lambda_role_policy_attachment" {
@@ -506,7 +660,7 @@ resource "aws_lambda_function" "email_verification_lambda" {
       SENDER_EMAIL     = "no-reply@demo.daminithorat.me"
       DB_HOST          = aws_db_instance.mysql.address
       DB_USER          = var.db_username
-      DB_PASSWORD      = var.db_password
+      DB_PASSWORD      = random_password.rds_password.result
       DB_NAME          = var.db_name
     }
   }
