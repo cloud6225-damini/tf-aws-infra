@@ -293,7 +293,7 @@ resource "aws_launch_template" "web_app_lt" {
     security_groups             = [aws_security_group.app_sg.id]
   }
 
-  #  block_device_mappings {
+  #  block_device_mappings { //ec2 encryption
   #   device_name = "/dev/xvda" # Root volume
   #   ebs {
   #     volume_size           = 20 # Volume size in GiB
