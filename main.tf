@@ -522,15 +522,15 @@ resource "aws_lb_target_group" "app_tg" {
   vpc_id      = aws_vpc.main_vpc.id
   target_type = "instance"
 
- health_check {
-  enabled             = true
-  healthy_threshold   = 2
-  interval            = 30
-  matcher             = "200"
-  path                = "/healthz"
-  timeout             = 5
-  unhealthy_threshold = 2
-}
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    interval            = 30
+    matcher             = "200"
+    path                = "/healthz"
+    timeout             = 5
+    unhealthy_threshold = 2
+  }
 
 }
 
