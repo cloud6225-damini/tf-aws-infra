@@ -47,7 +47,7 @@ resource "aws_secretsmanager_secret_version" "db_password_version" {
 }
 
 
-# Secrets Manager for Email Credentials
+# Secrets Manager for Email Credentials 
 resource "aws_secretsmanager_secret" "email_service" {
   name       = "email_lambda_id"
   kms_key_id = aws_kms_key.secrets_manager_key.id
