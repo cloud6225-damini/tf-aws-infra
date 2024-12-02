@@ -32,7 +32,7 @@ resource "aws_kms_key" "secrets_manager_key" {
 }
 
 
-# Secrets Manager for DB Credentials
+# Secrets Manager for DB Credentials 
 resource "aws_secretsmanager_secret" "db_password" {
   name       = "database_secret_key"
   kms_key_id = aws_kms_key.secrets_manager_key.id
