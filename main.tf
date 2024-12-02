@@ -8,6 +8,7 @@ resource "aws_kms_key" "ec2_key" {
   description             = "KMS Key for EC2"
   enable_key_rotation     = true
   deletion_window_in_days = 30
+  rotation_period_in_days = 90
   tags = {
     Name = "${var.vpc_name}-ec2-kms-key"
   }
@@ -17,6 +18,7 @@ resource "aws_kms_key" "rds_key" {
   description             = "KMS Key for RDS"
   enable_key_rotation     = true
   deletion_window_in_days = 30
+  rotation_period_in_days = 90
   tags = {
     Name = "${var.vpc_name}-rds-kms-key"
   }
@@ -26,6 +28,7 @@ resource "aws_kms_key" "secrets_manager_key" {
   description             = "KMS Key for Secrets Manager"
   enable_key_rotation     = true
   deletion_window_in_days = 30
+  rotation_period_in_days = 90
   tags = {
     Name = "${var.vpc_name}-secrets-manager-kms-key"
   }
@@ -34,7 +37,7 @@ resource "aws_kms_key" "secrets_manager_key" {
 
 # Secrets Manager for DB Credentials 
 resource "aws_secretsmanager_secret" "db_password" {
-  name       = "database_secret_key"
+  name       = "database_secret_key_kms"
   kms_key_id = aws_kms_key.secrets_manager_key.id
 }
 
@@ -49,7 +52,7 @@ resource "aws_secretsmanager_secret_version" "db_password_version" {
 
 # Secrets Manager for Email Credentials 
 resource "aws_secretsmanager_secret" "email_service" {
-  name       = "email_lambda_id"
+  name       = "email_lambda_id_kms"
   kms_key_id = aws_kms_key.secrets_manager_key.id
 }
 
@@ -331,8 +334,8 @@ npm --version
 
 # Define variables
 AWS_REGION="ca-central-1"
-DB_SECRET_ID="database_secret_key"
-EMAIL_SECRET_ID="email_lambda_id"
+DB_SECRET_ID="database_secret_key_kms"
+EMAIL_SECRET_ID="email_lambda_id_kms"
 
 # Retrieve database credentials from Secrets Manager
 echo "Retrieving database credentials..."
@@ -680,7 +683,7 @@ resource "aws_lambda_function" "email_verification_lambda" {
 
   environment {
     variables = {
-      SENDGRID_API_KEY = var.sendgrid_api_key
+      SENDGRID_API_KEY = aws_secretsmanager_secret.email_service.name
       SENDER_EMAIL     = "no-reply@demo.daminithorat.me"
       DB_HOST          = aws_db_instance.mysql.address
       DB_USER          = var.db_username
