@@ -19,24 +19,28 @@ resource "aws_kms_alias" "s3_kms_alias" {
   target_key_id = aws_kms_key.s3_kms_key.id
 }
 
-# Private S3 Bucket with KMS encryption and random UUID
+# Private S3 Bucket with Random UUID
 resource "aws_s3_bucket" "private_bucket" {
   bucket        = "damini-profile-${random_uuid.bucket_uuid.result}"
   acl           = "private"
   force_destroy = true
 
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        sse_algorithm     = "aws:kms"
-        kms_master_key_id = aws_kms_key.s3_kms_key.arn
-      }
-    }
-  }
-
   tags = {
     Name = "${var.vpc_name}-private-s3-bucket"
   }
+}
+
+# Add Server-Side Encryption Configuration for S3 Bucket
+resource "aws_s3_bucket_server_side_encryption_configuration" "default_encryption" {
+  bucket = aws_s3_bucket.private_bucket.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_alias.s3_kms_alias.arn
+    }
+  }
+  depends_on = [aws_s3_bucket.private_bucket]
 }
 
 # Lifecycle configuration for the S3 bucket
@@ -61,4 +65,10 @@ output "s3_bucket_name" {
 
 output "s3_kms_key_arn" {
   value = aws_kms_key.s3_kms_key.arn
+}
+
+
+# Output the bucket encryption details
+output "bucket_encryption" {
+  value = aws_s3_bucket_server_side_encryption_configuration.default_encryption.rule
 }

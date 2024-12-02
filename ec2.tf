@@ -75,15 +75,20 @@ resource "aws_iam_policy" "ec2_kms_policy" {
       {
         "Effect" : "Allow",
         "Action" : [
-          "kms:Decrypt"
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:GenerateDataKey",
+          "kms:DescribeKey"
         ],
         "Resource" : [
-          "${aws_kms_key.secrets_manager_key.arn}" # Replace <kms_key_id> with your actual KMS key ID
+          # "${aws_kms_key.ec2_key.arn}", # Add EC2-specific KMS key
+          "${aws_kms_key.secrets_manager_key.arn}" # Keep the Secrets Manager key if used
         ]
       }
     ]
   })
 }
+
 
 # Attach the combined S3, CloudWatch, and Secrets Manager policy to the EC2 role
 resource "aws_iam_role_policy_attachment" "ec2_s3_cloudwatch_secrets_policy_attachment" {
@@ -107,4 +112,13 @@ resource "random_password" "rds_password" {
   length           = 16
   special          = true
   override_special = "!#$%&()*+-.:;<=>?[]^_{|}~" # Exclude problematic characters
+}
+
+resource "aws_acm_certificate" "dev_cert" {
+  domain_name       = "dev.daminithorat.me"
+  validation_method = "DNS"
+
+  tags = {
+    Name = "Dev Environment Certificate"
+  }
 }
