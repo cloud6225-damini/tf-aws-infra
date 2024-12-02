@@ -34,7 +34,7 @@ resource "aws_kms_key" "secrets_manager_key" {
 
 # Secrets Manager for DB Credentials
 resource "aws_secretsmanager_secret" "db_password" {
-  name       = "dbsecretkms4"
+  name       = "data"
   kms_key_id = aws_kms_key.secrets_manager_key.id
 }
 
@@ -49,7 +49,7 @@ resource "aws_secretsmanager_secret_version" "db_password_version" {
 
 # Secrets Manager for Email Credentials
 resource "aws_secretsmanager_secret" "email_service" {
-  name       = "emailsecretkms4"
+  name       = "email_lambda"
   kms_key_id = aws_kms_key.secrets_manager_key.id
 }
 
@@ -187,14 +187,14 @@ resource "aws_security_group" "app_sg" {
     security_groups = [aws_security_group.lb_sg.id]
   }
 
-  ingress {
-    description      = "Allow SSH"
-    from_port        = 22
-    to_port          = 22
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
+  # ingress {
+  #   description      = "Allow SSH"
+  #   from_port        = 22
+  #   to_port          = 22
+  #   protocol         = "tcp"
+  #   cidr_blocks      = ["0.0.0.0/0"]
+  #   ipv6_cidr_blocks = ["::/0"]
+  # }
 
   egress {
     from_port        = 0
@@ -293,6 +293,17 @@ resource "aws_launch_template" "web_app_lt" {
     security_groups             = [aws_security_group.app_sg.id]
   }
 
+  #  block_device_mappings {
+  #   device_name = "/dev/xvda" # Root volume
+  #   ebs {
+  #     volume_size           = 20 # Volume size in GiB
+  #     volume_type           = "gp2"
+  #     encrypted             = true
+  #     kms_key_id            = aws_kms_key.ec2_key.arn # Use the EC2 encryption key
+  #     delete_on_termination = true
+  #   }
+  # }
+
   user_data = base64encode(<<EOF
 #!/bin/bash
 
@@ -320,8 +331,8 @@ npm --version
 
 # Define variables
 AWS_REGION="ca-central-1"
-DB_SECRET_ID="dbsecretkms4"
-EMAIL_SECRET_ID="emailsecretkms4"
+DB_SECRET_ID="data"
+EMAIL_SECRET_ID="email_lambda"
 
 # Retrieve database credentials from Secrets Manager
 echo "Retrieving database credentials..."
@@ -415,6 +426,8 @@ resource "aws_autoscaling_group" "web_asg" {
     aws_subnet.public[0].id,
     aws_subnet.public[1].id
   ]
+  health_check_grace_period = 300 # Increased to 10 minutes
+  health_check_type         = "EC2"
   launch_template {
     id      = aws_launch_template.web_app_lt.id
     version = "$Latest"
@@ -427,9 +440,6 @@ resource "aws_autoscaling_group" "web_asg" {
     value               = "${var.vpc_name}-webapp-instance"
     propagate_at_launch = true
   }
-
-  health_check_grace_period = 300
-  health_check_type         = "EC2"
 
   # Add Instance Refresh Trigger
   instance_refresh {
@@ -478,16 +488,31 @@ resource "aws_lb" "web_app_alb" {
 }
 
 # ALB Listener for HTTP
-resource "aws_lb_listener" "http" {
-  load_balancer_arn = aws_lb.web_app_alb.arn
-  port              = 80
-  protocol          = "HTTP"
+# resource "aws_lb_listener" "http" {
+#   load_balancer_arn = aws_lb.web_app_alb.arn
+#   port              = 80
+#   protocol          = "HTTP"
+
+#   default_action {
+#     type             = "forward"
+#     target_group_arn = aws_lb_target_group.app_tg.arn
+#   }
+# }
+
+resource "aws_lb_listener" "https_listener" {
+  load_balancer_arn = aws_lb.web_app_alb.arn # Update to the correct load balancer name
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = "arn:aws:acm:ca-central-1:831926588227:certificate/d790ed44-9ae3-403f-a118-306e71309e6d"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.app_tg.arn
+    target_group_arn = aws_lb_target_group.app_tg.arn # Update to the correct target group name
   }
 }
+
+
 
 # Target Group for Application Instances
 resource "aws_lb_target_group" "app_tg" {
@@ -497,14 +522,16 @@ resource "aws_lb_target_group" "app_tg" {
   vpc_id      = aws_vpc.main_vpc.id
   target_type = "instance"
 
-  health_check {
-    enabled             = true
-    healthy_threshold   = 2
-    interval            = 30
-    matcher             = "200"
-    timeout             = 5
-    unhealthy_threshold = 2
-  }
+ health_check {
+  enabled             = true
+  healthy_threshold   = 2
+  interval            = 30
+  matcher             = "200"
+  path                = "/healthz"
+  timeout             = 5
+  unhealthy_threshold = 2
+}
+
 }
 
 # Route 53 A Record for Load Balancer DNS

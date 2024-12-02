@@ -74,8 +74,12 @@ variable "s3_bucket_name" {
 variable "demo_hosted_id" {
   default = "Z04773211HKUM7JMJU657"
 }
+variable "dev_hosted_id" {
+  default = "Z034085227WV6F0X0GFV4"
+}
 
 variable "a_record" {
+  # default = "demo.daminithorat.me"
   default = "demo.daminithorat.me"
 }
 
